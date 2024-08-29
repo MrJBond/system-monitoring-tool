@@ -1,8 +1,10 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
+#include <ctime>
 #include <random>
 #include <vector>
+#include <tuple>
 #include <thread>
 #include <chrono>
 #include <mutex>
@@ -39,8 +41,35 @@ namespace systemMonitor{
          return os;
       }
 
+     // To print the tuple
+     // Base case: when the index is equal to the tuple size, stop the recursion.
+     template<size_t Index = 0, typename... Types>
+     typename enable_if<Index == sizeof...(Types), void>::type
+     print_tuple(ostream& os, const tuple<Types...>& t) {
+     // No operation (end of recursion)
+     }
+
+    // Recursive case: print the current element, followed by a separator.
+    template<size_t Index = 0, typename... Types>
+    typename enable_if<Index < sizeof...(Types), void>::type
+    print_tuple(ostream& os, const tuple<Types...>& t) {
+    os << get<Index>(t);
+    if constexpr (Index + 1 < sizeof...(Types)) {
+        os << " ";
+    }
+    print_tuple<Index + 1>(os, t);
+  }
+
+  // Overloading the << operator for std::tuple
+   template<typename... Types>
+    std::ostream& operator<<(std::ostream& os, const std::tuple<Types...>& t) {
+        print_tuple(os, t);
+        return os;
+    }
+
+
          // Graph
-     typedef boost::property<boost::edge_weight_t, uint64_t> EdgeWeightProperty;
+     typedef boost::property<boost::edge_weight_t, double> EdgeWeightProperty;
      typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::undirectedS,
                                    boost::no_property,
                                    EdgeWeightProperty> Graph;
@@ -60,6 +89,7 @@ namespace systemMonitor{
         void countMaxMin(string strToFind, string fileToRead);
         void countAsymmetryKurtosis(string strToFind, string fileToRead);
         void countMST(string strToFind, string fileToRead);
+        void countMaxST(string strToFind, string fileToRead);
         // another params...
 
         void visualizePlot(string sToFind, string fileToRead, long maxN);
@@ -67,7 +97,30 @@ namespace systemMonitor{
         protected:
             // Works any for the file, where there is only one number in the line
             long findNumber(string sToFind, string fileToRead);// get the number by the name of string
-             void drawPlot(const std::vector<std::vector<int>>& plot);
+
+
+            template<typename T> // os is either cout or file
+            void drawPlot(T os, const std::vector<std::vector<int>>& plot){
+                 int prevPointY = 0;
+                 for(int i = plot.size()-1; i>=0; i--){ // draw the plot correctly
+                     if(i < 10){
+                          os << " "; // for one-digit numbers
+                      }
+                      os << i << " | ";
+                      for(int j = 0; j<plot[i].size(); j++){
+                           if(plot[i][j] == 1){
+                                os << "  #  ";
+                            }
+                            else{
+                                os << "  .  ";
+                            }
+                       }
+                       os << '\n';
+                      }
+                     os << "--------------------------------------------";
+                     os << "----------------------------------------------------------> t" << '\n';
+              }
+
 
              template<typename T, typename V> // 2 params because we may wanna return, for example, double for vector of ints
                 T findAverage(const vector<V>& vals){
@@ -251,6 +304,7 @@ namespace systemMonitor{
                   return pow(r, 1.0/n);
              }
              uint64_t findMST(const vector<uint64_t>& vals);
+             cpp_int findMaxST(const vector<uint64_t>& vals);
              // another params...
 
 
@@ -288,6 +342,9 @@ namespace systemMonitor{
                  }
                  T res =  f(vals);
                  cout << '\n' << res << endl;
+
+                 this->askUserForFile([&](){this->resPropToFile<T>(strToFind, res);});
+
                  this_thread::sleep_for(chrono::seconds(5));
              }
     private:
@@ -318,8 +375,19 @@ namespace systemMonitor{
                this_thread::sleep_for(chrono::milliseconds(1000));
            }
      }
-     bool askForDouble();
+     void askUserForFile(function<void()> f); // we will call either plotToFile or resPropToFile
+     string getFileName(string sToFind); // get the name for the file
+     void plotToFile(string sToFind, const vector<vector<int>>& plot);
 
+     template<typename T>
+     void resPropToFile(string sToFind, T res){
+        string name = this->getFileName(sToFind);
+        ofstream file(name);
+        file << res;
+        file.close();
+     }
+
+     bool askForDouble();
      // Graph
      Graph& buildCompleteGraph(const vector<uint64_t>& vals);
 };

@@ -5,6 +5,7 @@
 #include <functional>
 #include <mutex>
 #include <atomic>
+#include <ctime>
 
 
 using namespace systemMonitor;
@@ -49,7 +50,7 @@ class Tool{
         }
      }
      void getUpTime();
-
+     void getSystemTime();
     /* ***************************
                 PLOTS
    *******************************/
@@ -257,6 +258,7 @@ class Tool{
   void asymmetryKurMemKernelStack(){
      this->mm.countAsymmetryKurtosis("KernelStack", meminfo);
   }
+  
   /**********************************************************
                        GRAPH
   *************************************************************/
@@ -265,5 +267,17 @@ class Tool{
   }
   void MSTRunningProc(){
      this->pm.countMST("procs_running", stat);
+  }
+  void MSTActiveMem(){
+    this->mm.countMST("Active", meminfo);
+  }
+  void MaxSTAvailMem(){
+    this->mm.countMaxST("MemAvailable", meminfo);
+  }
+  void MaxSTRunningProc(){
+    this->pm.countMaxST("procs_running", stat);
+  }
+  void MaxSTActiveMem(){
+     this->mm.countMaxST("Active", meminfo);
   }
 };

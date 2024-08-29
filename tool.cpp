@@ -110,3 +110,7 @@ void Tool::getUpTime(){
     uint64_t s = n;
     cout << "Up Time: "<< h << " : " << m << " : " << s << endl << endl;
 }
+void Tool::getSystemTime(){
+    auto time_ = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    cout << "System time: " << ctime(&time_) << endl << endl;
+}

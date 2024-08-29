@@ -35,26 +35,41 @@ long systemMonitor::FileReader::findNumber(string sToFind, string fileToRead){
    info.close();
    return 0;
 }
-void systemMonitor::FileReader::drawPlot(const std::vector<std::vector<int>>& plot){
-    int prevPointY = 0;
-    for(int i = plot.size()-1; i>=0; i--){ // draw the plot correctly
-       if(i < 10){
-         std::cout << " "; // for one-digit numbers
-       }
-       std::cout << i << " | ";
-       for(int j = 0; j<plot[i].size(); j++){
-           if(plot[i][j] == 1){
-              std::cout << "  #  ";
-           }
-           else{
-              std::cout << "  .  ";
-           }
-       }
-        std::cout << std::endl;
-    }
-   std::cout << "--------------------------------------------";
-   std::cout << "----------------------------------------------------------> t" << std::endl;
+
+string systemMonitor::FileReader::getFileName(string sToFind){
+     // Find time now
+    auto curTime = chrono::system_clock::to_time_t(chrono::system_clock::now());
+    string timeNow = ctime(&curTime);
+
+   // Remove the newline character at the end of timeNow
+   timeNow.erase(timeNow.find_last_not_of(" \n\r\t") + 1);
+
+   string name = sToFind + "_" +  timeNow + ".txt";
+   return name;
 }
+void systemMonitor::FileReader::askUserForFile(function<void()> f){
+    char a;
+    cout << "Do you want to write this result to a file? (y/n)" << endl;
+    cin >> a;
+    if(a == 'y'){
+      f();
+    }
+    else{
+      return;
+    }
+}
+void systemMonitor::FileReader::plotToFile(string sToFind, const vector<vector<int>>& plot){
+
+    string name = this->getFileName(sToFind);
+
+   // Write to file
+   ofstream file(name);
+
+   this->drawPlot<ofstream&>(file,plot);
+
+   file.close();
+}
+
 void systemMonitor::FileReader::visualizePlot(string sToFind, string fileToRead, long maxN){
     int maxY = 23, maxX = 20;
 
@@ -72,10 +87,13 @@ void systemMonitor::FileReader::visualizePlot(string sToFind, string fileToRead,
          y = n;
 
         plot[y][x] = 1;
-        this->drawPlot(plot);
+        this->drawPlot<ostream&>(std::cout, plot);
+
         std::this_thread::sleep_for(std::chrono::milliseconds(2000));
         system("clear");
     }
+    // Ask for a file
+   this->askUserForFile([&](){this->plotToFile(sToFind, plot);});
 }
 bool systemMonitor::FileReader::askForDouble(){
     cout << "Do you want to get the floating point result? (y/n)" << endl;
@@ -85,59 +103,73 @@ bool systemMonitor::FileReader::askForDouble(){
 }
 
 void systemMonitor::FileReader::countAverage(string strToFind, string fileToRead){
-    this->timeCounter<uint64_t, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->uint64_t {
-                                                                    cout << "\nAverage: ";
-                                                                    return this->findAverage<uint64_t, uint64_t>(v);});
+    this->timeCounter<pair<string, uint64_t>, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->pair<string,uint64_t> {
+                                                                    string title =  "Average: ";
+                                                                    uint64_t a = this->findAverage<uint64_t, uint64_t>(v);
+                                                                    auto res = make_pair(title, a);
+                                                                    return res;
+							          });
 
     cout << "I am going to find the Geometric mean now..." << endl;
-    this->timeCounter<cpp_dec_float_50, cpp_int>(strToFind, fileToRead, [&](vector<cpp_int> v)->cpp_dec_float_50 {
-                                                               cout << "Geometric mean: " << endl;
-                                                               return this->findGeoMean<cpp_int>(v);});
+    this->timeCounter<pair<string, cpp_dec_float_50>, cpp_int>(strToFind, fileToRead, [&](vector<cpp_int> v)->auto {
+                                                               // return type of this lambda is pair<string, cpp_dec_float_50>
+                                                               string title = "Geometric mean: ";
+                                                               cpp_dec_float_50 gm = this->findGeoMean<cpp_int>(v);
+                                                               auto res = make_pair(title, gm);
+                                                               return res;
+                                                               });
 
     bool wantDouble = this->askForDouble();
     if(wantDouble){
-       this->timeCounter<double, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->double {
-                                                                  cout << "\nFloating point average: ";
-                                                                  return this->findAverage<double, uint64_t>(v);});
+       this->timeCounter<pair<string, double>, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->pair<string,double> {
+                                                                  string title = "Floating point average: ";
+                                                                  double a = this->findAverage<double, uint64_t>(v);
+                                                                  return make_pair(title, a);
+                                                                  });
     }else{
       return;
     }
 }
 void systemMonitor::FileReader::countDispersion(string strToFind, string fileToRead){
   // cpp_int from boost to store large results
-   this->timeCounter<cpp_int, cpp_int>(strToFind, fileToRead, [&](vector<cpp_int> v)->cpp_int {
+   this->timeCounter<tuple<string, cpp_int, string, cpp_int>, cpp_int>(strToFind, fileToRead, [&](vector<cpp_int> v)->auto {
                                                                  cpp_int disp = this->findDispersion<cpp_int, cpp_int>(v);
                                                                  cpp_int sigma = sqrt(disp);
-                                                                 cout << "\nStandard deviation: " << sigma << endl;
-                                                                 cout << "Dispertion: ";
-                                                                 return disp;
+                                                                 string title1 =  "Standard deviation: ";
+                                                                 string title2 = "\nDispertion: ";
+                                                                 return make_tuple(title1, sigma, title2, disp);
                                                                });
 }
 void systemMonitor::FileReader::countMedian(string strToFind, string fileToRead){
-   this->timeCounter<long double, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->long double {
-                                                                       cout << "\nMedian: ";
-                                                                       return this->findMedian(v);});
+   this->timeCounter<pair<string, long double>, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->auto {
+                                                                       string title = "Median: ";
+                                                                       long double m = this->findMedian(v);
+                                                                       return make_pair(title, m);
+                                                                      });
 }
 void systemMonitor::FileReader::countMode(string strToFind, string fileToRead){
-   this->timeCounter<uint64_t, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->uint64_t {
-                                                                    cout << "\nMode: ";
-                                                                    return this->findMode(v);});
+   this->timeCounter<pair<string, uint64_t>, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->pair<string,uint64_t> {
+                                                                    string title = "Mode: ";
+                                                                    uint64_t m = this->findMode(v);
+                                                                    return make_pair(title, m);
+                                                                    });
 }
 void systemMonitor::FileReader::countMaxMin(string strToFind, string fileToRead){
-   this->timeCounter<pair<uint64_t,uint64_t>, uint64_t>(strToFind, fileToRead,
-                                                 [&](vector<uint64_t> v)->pair<uint64_t, uint64_t>{
-                                                     pair<uint64_t, uint64_t> res = this->maxMin(v);
-                                                     cout << "\nRange: " << res.first - res.second << endl;
-                                                     cout << "Max" << "   " << "Min" << endl;
+   this->timeCounter<tuple<string,uint64_t,string,uint64_t,string, uint64_t>, uint64_t>(strToFind, fileToRead,
+                                                 [&](vector<uint64_t> v)->auto{
+                                                     pair<uint64_t, uint64_t> r = this->maxMin(v);
+                                                     string title1 = "Range: ";
+                                                     uint64_t range = r.first - r.second;
+                                                     auto res = make_tuple(title1, range, "\nMax", r.first, "Min", r.second);
                                                      return res;
                                                  });
 }
 void systemMonitor::FileReader::countAsymmetryKurtosis(string strToFind, string fileToRead){
-    this->timeCounter<pair<double,double>, cpp_int>(strToFind, fileToRead, [&](vector<cpp_int> v)->pair<double,double>{
+    this->timeCounter<tuple<string,double,double>, cpp_int>(strToFind, fileToRead, [&](vector<cpp_int> v)->tuple<string,double,double>{
                                                                             pair<double,double> res = this->
                                                                             asymmetryKurtosis<cpp_int, cpp_int>(v);
-                                                                            cout << "\nAsymmetry and kurtosis: " << endl;
-                                                                            return res;
+                                                                            string title =  "Asymmetry and kurtosis: ";
+                                                                            return make_tuple(title, res.first, res.second);
                                                                             });
 }
 
@@ -197,11 +229,50 @@ uint64_t systemMonitor::FileReader::findMST(const vector<uint64_t>& vals){
     return total_cost;
 }
 void systemMonitor::FileReader::countMST(string strToFind, string fileToRead){
-    this->timeCounter<uint64_t, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->uint64_t{
+    this->timeCounter<pair<string, uint64_t>, uint64_t>(strToFind, fileToRead,[&](vector<uint64_t> v)->pair<string, uint64_t>{
                                                                  uint64_t res = this->findMST(v);
-                                                                 cout << "The minimum spanning tree of the graph, ";
-                                                                 cout << "where vertices are the numbers and the edges' ";
-                                                                 cout << "weights are the differences between them " << endl;
-                                                                 return res;
+                                                                 string title =  "The minimum spanning tree of the graph, "
+                                                                  "where vertices are the numbers and the edges' "
+                                                                 "weights are the differences between them \n";
+                                                                 return make_pair(title, res);
+                                                                });
+}
+
+cpp_int systemMonitor::FileReader::findMaxST(const vector<uint64_t>& vals){
+    Graph& g = this->buildCompleteGraph(vals);
+
+    // Convert the weights to 1/weight
+     boost::property_map<Graph, boost::edge_weight_t>::type weightmap = get(boost::edge_weight, g);
+    auto edges_pair = boost::edges(g);
+    for (auto it = edges_pair.first; it != edges_pair.second; ++it) {
+       weightmap[*it] = 1.0 / weightmap[*it];  // Invert the weight
+    }
+   // Find the MinST
+   vector<Vertex> predecessors(boost::num_vertices(g));
+   Vertex start = 0;
+   boost::prim_minimum_spanning_tree(g, &predecessors[0], boost::root_vertex(start));
+
+   // Get the MaxST cost
+   cpp_int total_cost = 0;
+    for (size_t i = 0; i < predecessors.size(); ++i) {
+        if (predecessors[i] != i) {  // The root vertex is its own predecessor
+            Edge e;
+            bool exists;
+            boost::tie(e, exists) = boost::edge(predecessors[i], i, g);
+            if (exists) {
+                total_cost += static_cast<cpp_int>(1.0 / weightmap[e]);  // Use the original weight before inversion
+            }
+        }
+    }
+    delete &g;
+    return total_cost;
+}
+void systemMonitor::FileReader::countMaxST(string strToFind, string fileToRead){
+    this->timeCounter<pair<string, cpp_int>, uint64_t>(strToFind, fileToRead, [&](vector<uint64_t> v)->pair<string,cpp_int>{
+                                                                cpp_int res = this->findMaxST(v);
+                                                                string title =  "The maximum spanning tree of the graph, "
+                                                                "where vertices are the numbers and the edges' "
+                                                                "weights are the differences between them \n";
+                                                                return make_pair(title,res);
                                                                 });
 }

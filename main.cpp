@@ -72,6 +72,7 @@ int main(){
 void menu(Tool& tool){
    getBasicInfo();
    tool.getUpTime();
+   tool.getSystemTime();
    cout << "View memory info (1)" << endl;
    cout << "Show process statistics (2)" << endl; 
    cout << "Show disk statistics (3)" << endl;
@@ -335,6 +336,18 @@ void properties(Tool& tool){
    case 46:
    tool.MSTRunningProc();
    break;
+   case 47:
+   tool.MSTActiveMem();
+   break;
+   case 48:
+   tool.MaxSTAvailMem();
+   break;
+   case 49:
+   tool.MaxSTRunningProc();
+   break;
+   case 50:
+   tool.MaxSTActiveMem();
+   break;
    case 0:
    stop = true;
    break;
@@ -400,8 +413,13 @@ void propertiesMenu(){
    cout << "--------------------------------------" << endl;
    cout << "The minimum spanning tree of available memory numbers (45)" << endl;
    cout << "The minimum spanning tree of running processes numbers (46)" << endl;
+   cout << "The minimum spanning tree of active memory numbers (47)" << endl;
    cout << "--------------------------------------" << endl;
-  // more statements
+   cout << "The maximum spanning tree of available memory numbers (48)" << endl;
+   cout << "The maximum spanning tree of running processes numbers (49)" << endl;
+   cout << "The maximum spanning tree of active memory numbers (50)" << endl;
+   cout << "--------------------------------------" << endl;
+ // more statements
 
    cout << "Exit (0)" << endl;
 }
